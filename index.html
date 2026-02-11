@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SiPintar Pro V2</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8faff; -webkit-tap-highlight-color: transparent; }
+        .bg-main { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid white; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .tab-active { background: #6366f1; color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+    </style>
+</head>
+<body class="overflow-x-hidden">
+
+<div id="app" class="max-w-md mx-auto min-h-screen flex flex-col relative bg-[#f8faff]">
+    
+    <header class="bg-main pt-14 pb-16 px-8 rounded-b-[50px] shadow-2xl relative z-10">
+        <div class="flex justify-between items-center mb-6 text-white">
+            <div>
+                <h1 class="text-2xl font-black italic tracking-tighter">SI-PINTAR <span class="text-indigo-200">V2</span></h1>
+                <p class="text-[9px] font-bold uppercase tracking-widest opacity-80">School Finance Pro</p>
+            </div>
+            <div class="bg-white/20 p-2 rounded-xl border border-white/20">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.407 2.63 1m-2.63-1c-.964 0-1.81.303-2.37.781m0 0l-2.13.511C3.12 9.53 2 10.82 2 12.28V15c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-2.72c0-1.46-1.12-2.75-2.5-2.99l-2.13-.511m-2.63-1.28c-.55.593-1.52 1-2.63 1"></path></svg>
+            </div>
+        </div>
+        
+        <div class="glass-card rounded-[32px] p-6 shadow-xl flex justify-between items-center">
+            <div>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Kas</p>
+                <p class="text-3xl font-black text-slate-800 tracking-tighter">Rp{{ formatPrice(totalToday) }}</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 -mt-8 pt-4 px-6 pb-32 z-20">
+        <div class="flex bg-white p-2 rounded-2xl mb-6 shadow-sm border border-white">
+            <button @click="view = 'spp'" :class="view === 'spp' ? 'tab-active' : 'text-slate-400'" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all">S P P</button>
+            <button @click="view = 'tabungan'" :class="view === 'tabungan' ? 'tab-active' : 'text-slate-400'" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all">Tabungan</button>
+            <button @click="view = 'laporan'" :class="view === 'laporan' ? 'tab-active' : 'text-slate-400'" class="flex-1 py-3 rounded-xl text-[10px] font-black uppercase transition-all">Laporan</button>
+        </div>
+
+        <div v-if="view === 'spp'" class="space-y-4">
+            <input v-model="form.name" type="text" placeholder="Nama Siswa" class="w-full p-5 bg-white rounded-2xl shadow-sm outline-none font-bold text-sm border border-slate-100">
+            <input v-model.number="form.amount" type="number" placeholder="Nominal Rp" class="w-full p-5 bg-white rounded-2xl shadow-sm outline-none font-black text-xl text-indigo-600 border border-slate-100">
+            <button @click="save('SPP')" class="w-full bg-main py-5 rounded-2xl text-white font-black uppercase tracking-widest shadow-lg">Bayar Sekarang</button>
+        </div>
+
+        <div v-if="view === 'laporan'" class="space-y-3">
+            <div v-for="log in logs" :key="log.id" class="bg-white p-5 rounded-[25px] shadow-sm flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-slate-800 text-sm">{{ log.name }}</p>
+                    <p class="text-[9px] text-slate-400 uppercase font-black">{{ log.category }} • {{ log.time }}</p>
+                </div>
+                <p class="font-black text-sm text-indigo-600">Rp{{ formatPrice(log.amount) }}</p>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    const { createApp } = Vue
+    createApp({
+        data() {
+            return {
+                view: 'spp',
+                form: { name: '', amount: null, desc: 'Januari', type: 'SETOR' },
+                logs: JSON.parse(localStorage.getItem('sipintar_v2_db')) || []
+            }
+        },
+        computed: {
+            totalToday() {
+                return this.logs.reduce((acc, curr) => acc + curr.amount, 0);
+            }
+        },
+        methods: {
+            save(cat) {
+                if(!this.form.name || !this.form.amount) return alert('Isi data!');
+                const data = {
+                    id: Date.now(),
+                    category: cat,
+                    name: this.form.name,
+                    amount: this.form.amount,
+                    time: new Date().toLocaleTimeString('id-ID'),
+                    date: new Date().toLocaleDateString('id-ID')
+                };
+                this.logs.unshift(data);
+                localStorage.setItem('sipintar_v2_db', JSON.stringify(this.logs));
+                this.form = { name: '', amount: null, desc: 'Januari', type: 'SETOR' };
+                this.view = 'laporan';
+            },
+            formatPrice(v) { return v ? v.toLocaleString('id-ID') : 0 }
+        },
+        mounted() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.update(); // Paksa cek update tiap dibuka
+                    console.log('SW Registered');
+                });
+            }
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>
